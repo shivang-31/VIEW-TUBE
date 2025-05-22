@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser'; // 👈 install this
 import authRoutes from './routes/authroutes.js';
 import connectDB from './config/db.js';
+import videoRoutes from './routes/videoRoutes.js';
+
 
 dotenv.config();
 connectDB();
@@ -16,6 +18,9 @@ app.use(express.json());
 app.use(cookieParser()); // 👈 needed to read refresh token
 
 app.use('/api/auth', authRoutes);
+
+app.use('/api/videos', videoRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);

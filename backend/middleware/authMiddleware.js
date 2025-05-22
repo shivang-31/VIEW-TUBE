@@ -1,22 +1,71 @@
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import jwt from "jsonwebtoken";
 
-const protect = async (req, res, next) => {
+const authenticateUser = (req, res, next) => {
   const authHeader = req.headers.authorization;
+  const refreshToken = req.cookies.refreshToken?.replace('refreshToken=', ''); // Refresh token stored in cookies
 
-  if (!authHeader || !authHeader.startsWith('Bearer '))
-    return res.status(401).json({ message: 'No token provided' });
+  console.log("Cookies Received:", req.cookies);
+  console.log("Refresh Token:", refreshToken);
 
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const decoded = jwt.verify(token, process.env.ACCESS_SECRET);
-    req.user = await User.findById(decoded.id).select('-password');
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Token is invalid or expired' });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Access token required" });
   }
+
+  const accessToken = authHeader.split(" ")[1];
+
+  // 🔑 Verify the access token
+  jwt.verify(accessToken, process.env.ACCESS_SECRET, (err, decoded) => {
+    if (!err) {
+      req.user = decoded;
+      return next(); // ✅ Access token is valid → Proceed
+    }
+
+    if (err.name !== "TokenExpiredError") {
+      console.error("Invalid access token:", err);
+      return res.status(403).json({ message: "Invalid access token" });
+    }
+
+    console.log("Access token expired, checking refresh token...");
+
+    // 🔁 Handle Refresh Token
+    if (!refreshToken) {
+      return res.status(403).json({ message: "Refresh token required" });
+    }
+
+    jwt.verify(refreshToken, process.env.REFRESH_SECRET, (err, decodedRefresh) => {
+      if (err) {
+        console.error("Refresh Token Error:", err);
+        return res.status(403).json({ message: "Refresh token expired, please log in again" });
+      }
+
+      // ♻️ Generate new tokens
+      const newAccessToken = jwt.sign(
+        { id: decodedRefresh.id },
+        process.env.ACCESS_SECRET,
+        { expiresIn: "15m" }
+      );
+
+      const newRefreshToken = jwt.sign(
+        { id: decodedRefresh.id },
+        process.env.REFRESH_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      // 🍪 Update cookies and headers
+      res.setHeader("Authorization", `Bearer ${newAccessToken}`);
+      res.cookie("refreshToken", newRefreshToken, {
+        httpOnly: true,
+        secure: false, // ✅ Set to "true" in production
+        sameSite: "Strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      console.log("Refresh Token Set in Cookies:", newRefreshToken);
+
+      req.user = decodedRefresh;
+      next(); // ✅ Proceed to protected route
+    });
+  });
 };
 
-export default protect;
-
+export default authenticateUser;
