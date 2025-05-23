@@ -1,9 +1,6 @@
-import { registerUser } from '../controllers/authController.js';
 import express from 'express';
-import { loginUser } from '../controllers/authController.js';
-import jwt from 'jsonwebtoken';
+import { loginUser,registerUser } from '../controllers/authController.js';
 import dotenv from 'dotenv';
-import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
