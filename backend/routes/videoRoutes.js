@@ -1,9 +1,16 @@
 import express from "express";
 import { uploadVideo } from "../controllers/videoController.js";
-import upload, { checkFileUpload } from "../middleware/multer.js";
-import authenticateUser from "../middleware/authMiddleware.js";  // ✅ No curly braces for default export
+import multerInstance, { uploadFiles, checkFileUpload } from "../middleware/multer.js";
+import authenticateUser from "../middleware/authMiddleware.js";
+
 const router = express.Router();
 
-router.post("/upload", authenticateUser, upload.single("video"), checkFileUpload, uploadVideo);
+// Using the pre-configured uploadFiles middleware
+router.post("/upload", 
+  authenticateUser, 
+  uploadFiles,  // Using the named export
+  checkFileUpload, 
+  uploadVideo
+);
 
 export default router;

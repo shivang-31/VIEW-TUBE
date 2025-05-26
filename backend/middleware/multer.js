@@ -1,36 +1,45 @@
 import multer from "multer";
 import path from "path";
 
-// ✅ Use memory storage for direct Cloudinary upload
 const storage = multer.memoryStorage();
 
-// ✅ Improved file filter with structured error handling
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = [".mp4", ".mov", ".avi", ".mkv"];
+  const allowedVideoExtensions = [".mp4", ".mov", ".avi", ".mkv"];
+  const allowedImageExtensions = [".jpg", ".jpeg", ".png", ".gif"];
   const ext = path.extname(file.originalname).toLowerCase();
 
-  if (allowedExtensions.includes(ext)) {
-    cb(null, true); // ✅ Accept file
-  } else {
-    req.fileValidationError = "Only video files are allowed"; // ✅ Custom validation message
-    cb(null, false); // ❌ Reject file
+  if (file.fieldname === "video") {
+    allowedVideoExtensions.includes(ext) 
+      ? cb(null, true)
+      : cb(new Error("Only video files (MP4, MOV, AVI, MKV) are allowed"), false);
+  } else if (file.fieldname === "thumbnail") {
+    allowedImageExtensions.includes(ext)
+      ? cb(null, true)
+      : cb(new Error("Only image files (JPG, JPEG, PNG, GIF) are allowed"), false);
   }
 };
 
-// ✅ Configure multer with memory storage and file limits
-const upload = multer({
+// Create the multer instance
+const multerInstance = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
-  fileFilter,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  fileFilter
 });
 
-// ✅ Middleware to check if a file is present before processing
- export const checkFileUpload = (req, res, next) => {
-  console.log("checkFileUpload middleware - req.file:", req.file);
-  if (!req.file) {
-    return res.status(400).json({ message: req.fileValidationError || "Video file is required" });
+// Named exports
+export const uploadFiles = multerInstance.fields([
+  { name: "video", maxCount: 1 },
+  { name: "thumbnail", maxCount: 1 }
+]);
+
+export const checkFileUpload = (req, res, next) => {
+  if (!req.files?.video?.[0] || !req.files?.thumbnail?.[0]) {
+    return res.status(400).json({ 
+      message: "Both video and thumbnail files are required" 
+    });
   }
   next();
 };
 
-export default upload;
+// Default export (the raw multer instance)
+export default multerInstance;
