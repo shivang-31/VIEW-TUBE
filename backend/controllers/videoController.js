@@ -1,4 +1,4 @@
-import Video from "../models/Videos.js";
+import Videos from "../models/Videos.js";
 import cloudinary from "cloudinary";
 import dotenv from "dotenv";
 import { Readable } from "stream";

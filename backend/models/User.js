@@ -39,15 +39,25 @@ const userSchema = new mongoose.Schema({
     default: Date.now,
   },
   likedVideos: [{
-    type: [mongoose.Schema.Types.ObjectId],
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'Video',
     default: [],
   }],
-  watchhistory:[{
-    type: [mongoose.Schema.Types.ObjectId],
-    ref:'video',
-    default:[]
+  watchhistory: [{
+    video: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Video',
+    },
+    watchtime: {
+      type: Date,
+      default: Date.now,
+    },
   }],
+  videosuploaded:[{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Video',
+    default: [],
+  }]
 });
 
 export default mongoose.model('User', userSchema);
