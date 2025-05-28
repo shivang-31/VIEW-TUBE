@@ -1,7 +1,8 @@
 import express from "express";
-import { uploadVideo } from "../controllers/videoController.js";
+import { uploadVideo , getVideoById ,updateVideo,deleteVideo , likeVideo , dislikeVideo } from "../controllers/videoController.js";
 import multerInstance, { uploadFiles, checkFileUpload } from "../middleware/multer.js";
 import authenticateUser from "../middleware/authMiddleware.js";
+import  getAllVideos  from '../controllers/videoController.js';
 
 const router = express.Router();
 
@@ -12,5 +13,19 @@ router.post("/upload",
   checkFileUpload, 
   uploadVideo
 );
+
+// List all videos
+router.get('/', getAllVideos);
+
+router.get('/:id', getVideoById);
+
+router.put('/:id', authenticateUser, updateVideo);
+
+router.delete('/:id', authenticateUser, deleteVideo);
+
+router.put('/:id/like',authenticateUser,likeVideo);
+
+router.put('/:id/dislike',authenticateUser,dislikeVideo);
+
 
 export default router;

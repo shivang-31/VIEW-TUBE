@@ -1,28 +1,32 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const videoSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: "User",
+    required: true,
   },
   title: {
     type: String,
-    required: true
+    required: true,
   },
   description: String,
   tags: [String],
   videoUrl: {
     type: String,
-    required: true
+    required: true,
   },
   thumbnail: String,
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  views: {
+    type: Number,
+    default: 0,
+  },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-export default mongoose.model('Video', videoSchema);
+export default mongoose.model("Video", videoSchema);
