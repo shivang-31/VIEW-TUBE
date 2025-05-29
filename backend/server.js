@@ -5,8 +5,11 @@ import cookieParser from 'cookie-parser'; // 👈 install this
 import authRoutes from './routes/authroutes.js';
 import connectDB from './config/db.js';
 import videoRoutes from './routes/videoRoutes.js';
+import commentRoutes from './routes/commentRoute.js'
+import { EventEmitter } from 'node:events';
 
 
+EventEmitter.defaultMaxListeners = 15; // Increase to 15 (default is 10)
 dotenv.config();
 connectDB();
 
@@ -21,6 +24,8 @@ app.use(cookieParser()); // 👈 needed to read refresh token
 app.use('/api/auth', authRoutes);
 
 app.use('/api/videos', videoRoutes);
+
+app.use('/api/comment',commentRoutes) 
 
 
 app.listen(PORT, () => {
