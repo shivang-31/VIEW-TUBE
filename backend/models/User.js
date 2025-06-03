@@ -25,14 +25,23 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-  subscribers: {
+  subscribedTo: [{
+    creatorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    subscribedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  subscribedCount: {  // Fixed casing (camelCase)
     type: Number,
-    default: 0,
+    default: 0
   },
-  subscribedTo: {
-    type: [mongoose.Schema.Types.ObjectId],
-    ref: 'User',
-    default: [],
+  followerCount: {    // 👈 Missing in your original schema!
+    type: Number,
+    default: 0
   },
   createdAt: {
     type: Date,
@@ -43,21 +52,11 @@ const userSchema = new mongoose.Schema({
     ref: 'Video',
     default: [],
   }],
-  watchhistory: [{
-    video: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Video',
-    },
-    watchtime: {
-      type: Date,
-      default: Date.now,
-    },
-  }],
-  videosuploaded:[{
+  videosUploaded: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Video',
     default: [],
   }]
-});
+}, { timestamps: true }); // Adds createdAt/updatedAt automatically
 
 export default mongoose.model('User', userSchema);

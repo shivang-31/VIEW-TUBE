@@ -3,6 +3,7 @@ import User from "../models/User.js"; // Make sure to import this
 import cloudinary from "cloudinary";
 import dotenv from "dotenv";
 import { Readable } from "stream";
+import  WatchHistory  from "../models/watchHistory.js";
 
 dotenv.config();
 
@@ -105,22 +106,40 @@ const getAllVideos = async (req, res) => {
   }
 };
 
-export const getVideoById = async (req, res) =>{
+export const getVideoById = async (req, res) => {
   try {
     const videoId = req.params.id;
     const video = await Video.findById(videoId);
 
-    if(!video){
+    if (!video) {
       return res.status(404).json({ message: "Video not found" });
     }
 
+    // ✅ Add to scalable watch history
+    const user = req.user; // From auth middleware
+
+    if (user) {
+      // Check if already in watch history
+      const alreadyWatched = await WatchHistory.findOne({
+        user: user.id,
+        video: videoId,
+      });
+
+      if (!alreadyWatched) {
+        await WatchHistory.create({
+          user: user.id,
+          video: videoId,
+        });
+      }
+    }
+
     res.status(200).json(video);
-  }
-  catch(err){
+  } catch (err) {
     console.error("Error fetching video:", err);
     res.status(500).json({ message: "Server error" });
   }
-}
+};
+
 
 export const updateVideo = async (req, res) => {
   try {
@@ -248,7 +267,40 @@ export const dislikeVideo = async (req, res) =>{
   }
 }
 
+export const getSuggestedVideos = async (req, res) => {
+  try {
+    const { videoId } = req.params;
 
+    // 1. Find the current video
+    const currentVideo = await Video.findById(videoId);
+    if (!currentVideo) {
+      return res.status(404).json({ message: "Video not found" });
+    }
+
+    // 2. Build suggestion criteria
+    const searchWords = currentVideo.title.split(' ').slice(0, 3).join('|'); // basic regex idea
+    const matchQuery = {
+      _id: { $ne: videoId }, // exclude current video
+      $or: [
+        { title: { $regex: searchWords, $options: 'i' } },
+        ...(currentVideo.tags?.length ? [{ tags: { $in: currentVideo.tags } }] : []),
+        ...(currentVideo.category ? [{ category: currentVideo.category }] : [])
+      ]
+    };
+
+    // 3. Fetch suggested videos
+    const suggestions = await Video.find(matchQuery)
+      .limit(10)
+      .select('title thumbnail views duration uploader')
+      .populate('uploader', 'username avatar')
+      .sort({ views: -1 });
+
+    res.status(200).json({ suggestions });
+  } catch (error) {
+    console.error("Video suggestion error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
 
 
