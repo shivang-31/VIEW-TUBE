@@ -1,5 +1,5 @@
 import express from "express";
-import { uploadVideo , getVideoById ,updateVideo,deleteVideo , likeVideo , dislikeVideo, getSuggestedVideos } from "../controllers/videoController.js";
+import { uploadVideo , getVideoById ,updateVideo,deleteVideo , likeVideo , dislikeVideo, getSuggestedVideos,getTrendingVideos } from "../controllers/videoController.js";
 import multerInstance, { uploadFiles, checkFileUpload } from "../middleware/multer.js";
 import authenticateUser from "../middleware/authMiddleware.js";
 import  getAllVideos  from '../controllers/videoController.js';
@@ -28,6 +28,9 @@ router.put('/:id/like',authenticateUser,likeVideo);
 router.put('/:id/dislike',authenticateUser,dislikeVideo);
 
 router.get('/:videoId/suggestions',authenticateUser, getSuggestedVideos);
+
+router.get('/trending', getTrendingVideos);
+
 
 
 export default router;

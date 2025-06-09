@@ -4,6 +4,10 @@ import cloudinary from "cloudinary";
 import dotenv from "dotenv";
 import { Readable } from "stream";
 import  WatchHistory  from "../models/watchHistory.js";
+import videoDailyviews from "../models/videoDailyviews";
+import getTodayDateString  from "../utilities/dateutility.js"; 
+
+
 
 dotenv.config();
 
@@ -114,6 +118,14 @@ export const getVideoById = async (req, res) => {
     if (!video) {
       return res.status(404).json({ message: "Video not found" });
     }
+    
+    const dateStr = getTodayDateString();
+    await videoDailyviews.findOneAndUpdate(
+      { video: videoId, date: dateStr },
+      { $inc: { viewCount: 1 } },
+      { upsert: true, new: true }
+    );
+
 
     // ✅ Add to scalable watch history
     const user = req.user; // From auth middleware
@@ -155,7 +167,7 @@ export const updateVideo = async (req, res) => {
     if (video.user.toString() !== req.user.id) {
       return res.status(403).json({ message: "You can only update your own videos" });
     }
-
+    
     if (title) video.title = title;
     if (description) video.description = description;
     if (tags) video.tags = tags.split(',');
@@ -176,7 +188,7 @@ export const deleteVideo = async (req, res) => {
     if (!video) {
       return res.status(404).json({ message: "Video not found" });
     }
-
+    
     if (video.user.toString() !== req.user.id) {
       return res.status(403).json({ message: "You can delete only your own videos" });
     }
@@ -195,7 +207,7 @@ export const likeVideo = async (req, res) => {
   try {
     const userId = req.user.id;
     const videoId = req.params.id;
-
+    
     if (!videoId || !userId) {
       return res.status(400).json({ message: "Video ID and User ID are required" });
     }
@@ -216,7 +228,7 @@ export const likeVideo = async (req, res) => {
         video.dislikes = video.dislikes.filter(id => id.toString() !== userId);
       }
     }
-
+    
     // Toggle liked video on user
     if (user.likedVideos.includes(videoId)) {
       user.likedVideos = user.likedVideos.filter(id => id.toString() !== videoId);
@@ -301,6 +313,57 @@ export const getSuggestedVideos = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
+export const getTrendingVideos = async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7; // default 7-day trending
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const trending = await videoDailyviews.aggregate([
+      {
+        $match: {
+          date: { $gte: startDate.toISOString().slice(0, 10) }
+        }
+      },
+      {
+        $group: {
+          _id: "$video",
+          totalViews: { $sum: "$viewCount" }
+        }
+      },
+      {
+        $sort: { totalViews: -1 }
+      },
+      {
+        $limit: 10
+      },
+      {
+        $lookup: {
+          from: "videos",
+          localField: "_id",
+          foreignField: "_id",
+          as: "video"
+        }
+      },
+      { $unwind: "$video" },
+      {
+        $project: {
+          _id: 0,
+          video: 1,
+          totalViews: 1
+        }
+      }
+    ]);
+
+    res.status(200).json(trending);
+  } catch (err) {
+    console.error("Error fetching trending videos:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 
 
