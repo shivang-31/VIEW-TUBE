@@ -6,6 +6,7 @@ import { Readable } from "stream";
 import  WatchHistory  from "../models/watchHistory.js";
 import videoDailyviews from "../models/videoDailyviews";
 import getTodayDateString  from "../utilities/dateutility.js"; 
+import redisClient from '../utilities/redisClient.js';
 
 
 
@@ -313,57 +314,141 @@ export const getSuggestedVideos = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-
 export const getTrendingVideos = async (req, res) => {
   try {
-    const days = parseInt(req.query.days) || 7; // default 7-day trending
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const daysRaw = parseInt(req.query.days);
+    const days = Math.min(Math.max(daysRaw || 7, 1), 30); // Clamp between 1 and 30
+    const cacheKey = `trending:v2:${days}d`;
+    const cacheTTL = days <= 1 ? 900 : 1800; // seconds
 
-    const trending = await videoDailyviews.aggregate([
+    // Try Redis cache
+    let cachedData;
+    try {
+      cachedData = await redisClient.get(cacheKey);
+    } catch (redisErr) {
+      console.warn("Redis read error:", redisErr.message);
+    }
+
+    if (cachedData) {
+      return res.status(200).json(JSON.parse(cachedData));
+    }
+
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    // Aggregation
+    const trending = await VideoDailyViews.aggregate([
       {
         $match: {
-          date: { $gte: startDate.toISOString().slice(0, 10) }
+          date: { $gte: startDateStr, $lte: endDateStr }
         }
       },
       {
         $group: {
           _id: "$video",
-          totalViews: { $sum: "$viewCount" }
+          totalViews: { $sum: "$viewCount" },
+          latestViewDate: { $max: "$date" }
         }
       },
-      {
-        $sort: { totalViews: -1 }
-      },
-      {
-        $limit: 10
-      },
+      { $sort: { totalViews: -1, latestViewDate: -1 } },
+      { $limit: 20 },
       {
         $lookup: {
           from: "videos",
-          localField: "_id",
-          foreignField: "_id",
-          as: "video"
+          let: { videoId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$videoId"] },
+                visibility: "public"
+              }
+            },
+            {
+              $project: {
+                title: 1,
+                thumbnail: 1,
+                duration: 1,
+                userId: 1,
+                views: 1,
+                likeCount: {
+                  $cond: {
+                    if: { $isArray: "$likes" },
+                    then: { $size: "$likes" },
+                    else: 0
+                  }
+                },
+                createdAt: 1,
+                category: 1
+              }
+            }
+          ],
+          as: "videoData"
         }
       },
-      { $unwind: "$video" },
+      { $unwind: "$videoData" },
+      {
+        $lookup: {
+          from: "users",
+          localField: "videoData.userId",
+          foreignField: "_id",
+          pipeline: [
+            { $project: { username: 1, avatar: 1 } }
+          ],
+          as: "creator"
+        }
+      },
+      { $unwind: "$creator" },
       {
         $project: {
-          _id: 0,
-          video: 1,
-          totalViews: 1
+          video: {
+            _id: "$_id",
+            title: "$videoData.title",
+            thumbnail: "$videoData.thumbnail",
+            duration: "$videoData.duration",
+            views: "$videoData.views",
+            likes: "$videoData.likeCount",
+            createdAt: "$videoData.createdAt",
+            category: "$videoData.category"
+          },
+          creator: {
+            _id: "$videoData.userId",
+            username: "$creator.username",
+            avatar: "$creator.avatar"
+          },
+          trendingMetrics: {
+            periodViews: "$totalViews",
+            latestViewDate: "$latestViewDate"
+          }
         }
       }
     ]);
 
+    // Cache the result
+    try {
+      await redisClient.setEx(cacheKey, cacheTTL, JSON.stringify(trending));
+    } catch (redisErr) {
+      console.warn("Redis write error:", redisErr.message);
+    }
+
     res.status(200).json(trending);
+
   } catch (err) {
     console.error("Error fetching trending videos:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching trending videos",
+      error: process.env.NODE_ENV === 'development' ? {
+        message: err.message,
+        stack: err.stack
+      } : undefined
+    });
   }
 };
-
 
 
 

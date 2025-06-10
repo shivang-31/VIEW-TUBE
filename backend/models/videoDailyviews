@@ -7,7 +7,7 @@ const videoDailyViewsSchema = new mongoose.Schema({
     required: true
   },
   date: {
-    type: String, // "YYYY-MM-DD"
+    type: String, // Format: "YYYY-MM-DD"
     required: true
   },
   viewCount: {
@@ -16,6 +16,9 @@ const videoDailyViewsSchema = new mongoose.Schema({
   }
 });
 
-videoDailyViewsSchema.index({ video: 1, date: 1 }, { unique: true });
+// Indexes
+videoDailyViewsSchema.index({ video: 1, date: -1 });
+videoDailyViewsSchema.index({ date: 1, viewCount: -1 });
 
-export default mongoose.model('videoDailyviews', videoDailyViewsSchema);
+const VideoDailyViews = mongoose.model('VideoDailyViews', videoDailyViewsSchema);
+export default VideoDailyViews;

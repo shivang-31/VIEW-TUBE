@@ -3,7 +3,9 @@ import {
   createSubscription,
   deleteSubscription,
   getUserSubscriptions,
-  getCreatorFollowers
+  getCreatorFollowers,
+  getChannelInfo,
+  getSubscriptionFeed
 } from '../controllers/subscriptionController.js';
 import authenticateUser from '../middleware/authMiddleware.js';
 
@@ -20,5 +22,12 @@ router.get('/me', authenticateUser, getUserSubscriptions);
 
 // GET /api/creators/:id/followers
 router.get('/creators/:id/followers', getCreatorFollowers);
+
+router.get('/channel/:userId', getChannelInfo);
+
+// Protect route with authentication middleware
+router.get('/subscriptions/feed', authenticateUser, getSubscriptionFeed);
+
+
 
 export default router;

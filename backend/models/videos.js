@@ -5,20 +5,20 @@ const videoSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-    index: true  // Added index for faster user-based queries
+    index: true
   },
   title: {
     type: String,
     required: true,
-    text: true  // Enable text search
+    text: true
   },
   description: {
     type: String,
-    text: true  // Enable text search
+    text: true
   },
   tags: {
     type: [String],
-    index: true  // Added index for tag filtering
+    index: true
   },
   videoUrl: {
     type: String,
@@ -36,64 +36,65 @@ const videoSchema = new mongoose.Schema({
   views: {
     type: Number,
     default: 0,
-    index: true  // Added index for popular videos sorting
+    index: true
   },
-  duration: {  // New field recommended for search results
+  duration: {
     type: Number,
     default: 0
   },
-  visibility: {  // New field recommended
+  visibility: {
     type: String,
     enum: ['public', 'private', 'unlisted'],
-    default: 'public'
+    default: 'public',
+    index: true
   },
-  category: {  // New field recommended
+  category: {
     type: String,
     index: true
   },
   createdAt: {
     type: Date,
     default: Date.now,
-    index: true  // Added index for sorting
+    index: true
   },
   updatedAt: {
     type: Date,
     default: Date.now
   }
 }, {
-  timestamps: true,  // Automatic createdAt/updatedAt
+  timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// Compound text index for better search relevance
+// Compound text index
 videoSchema.index({
   title: 'text',
   description: 'text',
   tags: 'text'
 }, {
   weights: {
-    title: 3,       // Title matches are 3x more important
-    description: 1, // Description matches are standard
-    tags: 2         // Tag matches are 2x more important
+    title: 3,
+    tags: 2,
+    description: 1
   },
-  name: 'video_search_index'  // Custom index name
+  name: 'video_search_index'
 });
 
-// Virtual for like count (avoids storing duplicate data)
-videoSchema.virtual('likeCount').get(function() {
+// Virtual fields
+videoSchema.virtual('likeCount').get(function () {
   return this.likes?.length || 0;
 });
 
-// Virtual for dislike count
-videoSchema.virtual('dislikeCount').get(function() {
+videoSchema.virtual('dislikeCount').get(function () {
   return this.dislikes?.length || 0;
 });
 
-// Middleware to update timestamps
-videoSchema.pre('save', function(next) {
+// Middleware
+videoSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-export default mongoose.model("Video", videoSchema);
+const Video = mongoose.model("Video", videoSchema);
+export default Video;
