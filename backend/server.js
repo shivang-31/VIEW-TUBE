@@ -68,3 +68,13 @@ httpServer.listen(PORT, () => {
   console.log(`✅ WebSocket server ready at ws://localhost:${PORT}`);
   console.log(`✅ MongoDB Connected: ${process.env.MONGO_URI.split('@')[1]?.split('.')[0] || 'connected'}`);
 });
+
+/*npm install pm2 -g
+pm2 start server.js --name "viewtube-backend"
+// Add to server.js
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    websockets: io.engine.clientsCount
+  });
+}); */
