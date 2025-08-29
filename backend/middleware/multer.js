@@ -16,7 +16,7 @@ const fileFilter = (req, file, cb) => {
     allowedImageExtensions.includes(ext)
       ? cb(null, true)
       : cb(new Error("Only image files (JPG, JPEG, PNG, GIF) are allowed"), false);
-  }
+  }     
 };
 
 // Create the multer instance

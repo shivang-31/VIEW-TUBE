@@ -1,6 +1,7 @@
 import Video from '../models/videos.js';
 import Subscription from '../models/Subscription.js';
 import User from '../models/User.js';
+import Channel from '../models/Channels.js';
 import mongoose from 'mongoose';
 
 // POST /api/subscriptions
@@ -9,36 +10,44 @@ export const createSubscription = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { creatorId } = req.body;
+    const { channelId } = req.body; // Changed from creatorId to channelId
     const subscriberId = req.user._id;
 
     // Validation
-    if (!creatorId) {
+    if (!channelId) {
       await session.abortTransaction();
-      return res.status(400).json({ error: 'Creator ID is required' });
+      return res.status(400).json({ error: 'Channel ID is required' });
     }
 
-    if (subscriberId.equals(creatorId)) {
+    // Check if channel exists
+    const channel = await Channel.findById(channelId).session(session);
+    if (!channel) {
       await session.abortTransaction();
-      return res.status(400).json({ error: 'Cannot subscribe to yourself' });
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+
+    // Prevent subscribing to your own channel
+    if (channel.user.equals(subscriberId)) {
+      await session.abortTransaction();
+      return res.status(400).json({ error: 'Cannot subscribe to your own channel' });
     }
 
     // Check existing subscription
     const exists = await Subscription.exists({
       subscriberId,
-      subscribedToId: creatorId
+      channelId // Changed from subscribedToId to channelId
     }).session(session);
 
     if (exists) {
       await session.abortTransaction();
-      return res.status(409).json({ error: 'Already subscribed' });
+      return res.status(409).json({ error: 'Already subscribed to this channel' });
     }
 
-    // Transaction: Update both user docs and create subscription
+    // Transaction: Update user, channel and create subscription
     await User.findByIdAndUpdate(
       subscriberId,
       {
-        $addToSet: { subscribedTo: { creatorId, subscribedAt: new Date() } },
+        $addToSet: { subscribedChannels: channelId }, // Changed from subscribedTo
         $inc: { subscribedCount: 1 }
       },
       { session }
@@ -47,15 +56,15 @@ export const createSubscription = async (req, res) => {
     const [subscription] = await Subscription.create(
       [{
         subscriberId,
-        subscribedToId: creatorId,
+        channelId, // Changed from subscribedToId
         subscribedAt: new Date()
       }],
       { session }
     );
 
-    await User.findByIdAndUpdate(
-      creatorId,
-      { $inc: { followerCount: 1 } },
+    await Channel.findByIdAndUpdate(
+      channelId,
+      { $inc: { subscriberCount: 1 } }, // Update channel's subscriber count
       { session }
     );
 
@@ -85,19 +94,19 @@ export const deleteSubscription = async (req, res) => {
       return res.status(404).json({ error: 'Subscription not found' });
     }
 
-    // Transaction: Update both user docs
+    // Transaction: Update user and channel
     await User.findByIdAndUpdate(
       req.user._id,
       {
-        $pull: { subscribedTo: { creatorId: subscription.subscribedToId } },
+        $pull: { subscribedChannels: subscription.channelId }, // Changed from subscribedTo
         $inc: { subscribedCount: -1 }
       },
       { session }
     );
 
-    await User.findByIdAndUpdate(
-      subscription.subscribedToId,
-      { $inc: { followerCount: -1 } },
+    await Channel.findByIdAndUpdate(
+      subscription.channelId, // Changed from subscribedToId
+      { $inc: { subscriberCount: -1 } },
       { session }
     );
 
@@ -122,7 +131,14 @@ export const getUserSubscriptions = async (req, res) => {
         .sort({ subscribedAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('subscribedToId', 'username avatar'),
+        .populate({
+          path: 'channelId',
+          select: 'name avatar user',
+          populate: {
+            path: 'user',
+            select: 'username'
+          }
+        }),
       Subscription.countDocuments({ subscriberId: req.user._id })
     ]);
 
@@ -139,27 +155,27 @@ export const getUserSubscriptions = async (req, res) => {
   }
 };
 
-// GET /api/creators/:id/followers
-export const getCreatorFollowers = async (req, res) => {
+// GET /api/channels/:id/subscribers
+export const getChannelSubscribers = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
 
-    const [followers, total] = await Promise.all([
-      Subscription.find({ subscribedToId: req.params.id })
+    const [subscribers, total] = await Promise.all([
+      Subscription.find({ channelId: req.params.id })
         .sort({ subscribedAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate('subscriberId', 'username avatar'),
-      Subscription.countDocuments({ subscribedToId: req.params.id })
+      Subscription.countDocuments({ channelId: req.params.id })
     ]);
 
     res.json({
-      data: followers,
+      data: subscribers,
       pagination: {
         currentPage: +page,
         totalPages: Math.ceil(total / limit),
-        totalFollowers: total
+        totalSubscribers: total
       }
     });
   } catch (error) {
@@ -169,23 +185,27 @@ export const getCreatorFollowers = async (req, res) => {
 
 export const getChannelInfo = async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const channelId = req.params.channelId;
 
-    // 1️⃣ Fetch user public data
-    const user = await User.findById(userId).select('_id username avatar');
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    // 1️⃣ Fetch channel data
+    const channel = await Channel.findById(channelId)
+      .populate('user', 'username avatar');
+    
+    if (!channel) return res.status(404).json({ error: 'Channel not found' });
 
     // 2️⃣ Count subscribers
-    const subscriberCount = await Subscription.countDocuments({ subscribedToId: userId });
+    const subscriberCount = await Subscription.countDocuments({ channelId });
 
-    // 3️⃣ Fetch all videos uploaded by this user
-    const videos = await Video.find({ user: userId })
+    // 3️⃣ Fetch all videos from this channel
+    const videos = await Video.find({ channelId })
       .sort({ createdAt: -1 })
       .select('_id title thumbnail views createdAt');
 
     res.json({
-      user,
-      subscriberCount,
+      channel: {
+        ...channel.toObject(),
+        subscriberCount
+      },
       videos
     });
   } catch (err) {
@@ -195,13 +215,14 @@ export const getChannelInfo = async (req, res) => {
 
 export const getSubscriptionFeed = async (req, res) => {
   try {
-    const userId = req.user._id;               // Logged in user
+    const userId = req.user._id;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
     // 1️⃣ Find all channels user subscribed to
-    const subscriptions = await Subscription.find({ subscriberId: userId }).select('subscribedToId');
+    const subscriptions = await Subscription.find({ subscriberId: userId })
+      .select('channelId');
 
     if (!subscriptions.length) {
       return res.json({
@@ -211,18 +232,26 @@ export const getSubscriptionFeed = async (req, res) => {
     }
 
     // 2️⃣ Extract subscribed channel IDs
-    const subscribedChannelIds = subscriptions.map(sub => sub.subscribedToId);
+    const subscribedChannelIds = subscriptions.map(sub => sub.channelId);
 
-    // 3️⃣ Fetch recent videos uploaded by these channels
-    const videosPromise = Video.find({ user: { $in: subscribedChannelIds } })
-      .sort({ createdAt: -1 })      // Newest first
+    // 3️⃣ Fetch recent videos from these channels
+    const videosPromise = Video.find({ channelId: { $in: subscribedChannelIds } })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select('_id title thumbnail views createdAt user')
-      .populate('user', 'username avatar'); // Show uploader info
+      .select('_id title thumbnail views createdAt channelId')
+      .populate({
+        path: 'channelId',
+        select: 'name avatar user',
+        populate: {
+          path: 'user',
+          select: 'username'
+        }
+      });
 
-    // 4️⃣ Count total videos for pagination
-    const countPromise = Video.countDocuments({ user: { $in: subscribedChannelIds } });
+    const countPromise = Video.countDocuments({ 
+      channelId: { $in: subscribedChannelIds } 
+    });
 
     const [videos, total] = await Promise.all([videosPromise, countPromise]);
 
@@ -239,3 +268,18 @@ export const getSubscriptionFeed = async (req, res) => {
   }
 };
 
+export const getCreatorFollowers = async (req, res) => {
+  try {
+    const { creatorId } = req.params;
+    const followers = await Subscription.find({ channelId: creatorId })
+      .populate("subscriberId", "username avatar");
+
+    res.status(200).json({
+      creatorId,
+      totalFollowers: followers.length,
+      followers
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

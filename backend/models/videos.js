@@ -1,10 +1,16 @@
 import mongoose from "mongoose";
 
 const videoSchema = new mongoose.Schema({
+  channelId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Channel",
+    required: true,
+    index: true
+  },
+  // Optional: keep userId for permission checks if needed
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
     index: true
   },
   title: {
@@ -67,7 +73,7 @@ const videoSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Compound text index
+// Compound text index for search
 videoSchema.index({
   title: 'text',
   description: 'text',
@@ -90,7 +96,7 @@ videoSchema.virtual('dislikeCount').get(function () {
   return this.dislikes?.length || 0;
 });
 
-// Middleware
+// Auto update `updatedAt`
 videoSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();

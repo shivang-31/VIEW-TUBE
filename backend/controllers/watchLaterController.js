@@ -1,4 +1,4 @@
-import {SavedVideo} from "../models/savedVideo.js";
+import {SavedVideo} from "../models/Watchlater.js";
 
 // POST /api/videos/save/:videoId
 export const saveVideoForLater = async (req, res) => {

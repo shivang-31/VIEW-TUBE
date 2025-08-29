@@ -2,9 +2,11 @@ import jwt from "jsonwebtoken";
 
 const authenticateUser = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const refreshToken = req.cookies.refreshToken?.replace('refreshToken=', ''); // Refresh token stored in cookies
+  const refreshToken = req.cookies.refreshToken; // ✅ CORRECT // Refresh token stored in cookies
 
-  console.log("Cookies Received:", req.cookies);
+  console.log("Cookies Received:", authHeader);
+  console.log("here again here")
+  console.log("cookies", req.cookies);
   console.log("Refresh Token:", refreshToken);
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -56,9 +58,11 @@ const authenticateUser = (req, res, next) => {
       res.cookie("refreshToken", newRefreshToken, {
         httpOnly: true,
         secure: false, // ✅ Set to "true" in production
-        sameSite: "Strict",
+         sameSite: "Lax",
+       path: "/",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
+      res.json({ accessToken: newAccessToken });
 
       console.log("Refresh Token Set in Cookies:", newRefreshToken);
 

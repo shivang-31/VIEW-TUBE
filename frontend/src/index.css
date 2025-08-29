@@ -1,68 +1,61 @@
+@import "tailwindcss";
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --bg: #0f0f0f;
+  --panel: #151515;
+  --text: #eaeaea;
+  --muted: #a8a8a8;
+  --primary: #e11d48; /* accent */
+  --border: #242424;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
+/* Layout */
+.app-shell { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+.sidebar { background: var(--panel); border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+.main { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.header { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--panel); position: sticky; top: 0; z-index: 10; }
+.outlet { padding: 16px; overflow: auto; }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+/* Sidebar */
+.nav .logo { font-weight: 800; letter-spacing: 0.3px; margin-bottom: 12px; }
+.nav ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.nav a { display: block; padding: 10px 12px; text-decoration: none; color: var(--text); border-radius: 10px; }
+.nav a:hover { background: #1d1d1d; }
+.nav a.active { background: var(--primary); color: white; }
+.auth-cta { margin-top: 12px; }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
+/* Header */
+.search { display: flex; gap: 8px; align-items: center; width: 100%; max-width: 640px; }
+.search input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: #111; color: var(--text); }
+.search button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--primary); color: white; cursor: pointer; }
+.profile { display: flex; align-items: center; gap: 12px; }
+.avatar { width: 32px; height: 32px; border-radius: 999px; background: #333; border: 1px solid var(--border); }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Grid of videos */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.video-card { display: grid; gap: 8px; text-decoration: none; color: var(--text); background: #111; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.video-card img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
+.video-card .meta { padding: 10px; }
+.video-card h4 { margin: 0 0 6px; font-size: 15px; }
+.video-card p { margin: 0; color: var(--muted); font-size: 13px; }
+.video-card:hover { transform: translateY(-2px); transition: transform .15s ease; }
+
+/* Auth */
+.center { display: grid; place-items: center; height: 100%; }
+.card { width: 100%; max-width: 360px; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: grid; gap: 10px; }
+.card h2 { margin: 0 0 6px; }
+.card input { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: #111; color: var(--text); }
+.card button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--primary); color: white; cursor: pointer; }
+.muted { color: var(--muted); font-size: 12px; }
+
+/* Player placeholder */
+.player-placeholder { height: 60vh; border-radius: 12px; border: 1px dashed var(--border); display: grid; place-items: center; color: var(--muted); background: #111; }
+
+/* Responsive */
+@media (max-width: 860px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { position: sticky; top: 0; z-index: 20; }
 }
